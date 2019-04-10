@@ -95,6 +95,9 @@ private:
 
 	PatternGenerator *patternGenerator;
 
+	Pin rf1TxEnable { Pin(RF1TXEN_GPIO_Port, RF1TXEN_Pin) };
+	Pin rf1RxEnable { Pin(RF1RXEN_GPIO_Port, RF1RXEN_Pin) };
+
 	volatile LinkState state { INIT };
 	uint16_t packetNumber;
 

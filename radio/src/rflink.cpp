@@ -19,7 +19,7 @@ void RfLink::init() {
 	this->rf1Module = new SX1280(&hspi1, nresetPin, ncsPin, busyPin);
 
 	rf1Module->onTxDone = [this]() {
-//		HAL_GPIO_WritePin(RF1TxEnable_GPIO_Port, RF1TxEnable_Pin, GPIO_PIN_RESET);
+		rf1TxEnable.low();
 		state = TRANSMITTED;
 	};
 
@@ -28,7 +28,7 @@ void RfLink::init() {
 	};
 
 	rf1Module->onRxDone = [this]() {
-//		HAL_GPIO_WritePin(RxEnable_GPIO_Port, RxEnable_Pin, GPIO_PIN_RESET);
+		rf1RxEnable.low();
 		state = RECEIVED;
 	};
 
@@ -124,10 +124,12 @@ void RfLink::runLoop(void) {
 		memset(payload, 0, 127);
 		rf1Module->getPayload(payload, &size, maxSize);
 		if (size == 41) {
-			Packet packet;
-			memcpy(&packet.status, &payload[0], 2);
-			memcpy(&packet.payload[0], &payload[2], 6);
-			onReceive(packet);
+			if (onReceive != nullptr) {
+				Packet packet;
+				memcpy(&packet.status, &payload[0], 2);
+				memcpy(&packet.payload[0], &payload[2], 6);
+				onReceive(packet);
+			}
 		}
 		state = DONE;
 	}
@@ -218,7 +220,9 @@ void RfLink::registerLostPacket(void) {
 }
 
 void RfLink::sendPacket(void) {
-//    HAL_GPIO_WritePin(RF1TxEnable_GPIO_Port, RF1TxEnable_Pin, GPIO_PIN_SET);
+	if (onTransmit == nullptr) { return; }
+
+	rf1TxEnable.high();
     Packet packet { 0 };
     packet.status.packetNumber = packetNumber;
     onTransmit(packet);
@@ -226,6 +230,6 @@ void RfLink::sendPacket(void) {
 }
 
 void RfLink::enterRx(void) {
-//    HAL_GPIO_WritePin(RxEnable_GPIO_Port, RxEnable_Pin, GPIO_PIN_SET);
+	rf1RxEnable.high();
     rf1Module->enterRx();
 }
