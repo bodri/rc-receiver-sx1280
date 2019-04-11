@@ -1,6 +1,6 @@
 This is the firmware for the Rc receiver based on the SX1280 chipset. The hardware design can be found here: [Rc Receiver](https://github.com/bodri/RcReceiver)
 
-#Project goals
+# Project goals
 * Handle both receiver and transmitter in one codeline
 * FHSS (Frequency Hopping Spread Spectrum) system
 * 80 channels (on normal ISM band: 2400 Mhz - 2483.5 Mhz), with 1MHz channel separation
@@ -18,7 +18,7 @@ This is the firmware for the Rc receiver based on the SX1280 chipset. The hardwa
   - Extensible via UART port(s)
 * OTA (Over the Air) firmware update
 
-#Current status (April 11, 2019)
+# Current status (April 11, 2019)
 * The firmware is only using the RF module #1
 * FHSS works
 * Acquisition and tracking works
