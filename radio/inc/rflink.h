@@ -73,6 +73,7 @@ public:
 	~RfLink() {
 		delete patternGenerator;
 		delete rf1Module;
+		delete rf2Module;
 	};
 
 	void init();
@@ -86,6 +87,7 @@ public:
 	std::function<void(Packet &packet)> onReceiveTelemetry;
 
 	SX1280 *rf1Module;
+	SX1280 *rf2Module;
 
 private:
 	TIM_HandleTypeDef *heartBeatTimer;
@@ -98,11 +100,15 @@ private:
 	Pin rf1TxEnable { Pin(RF1TXEN_GPIO_Port, RF1TXEN_Pin) };
 	Pin rf1RxEnable { Pin(RF1RXEN_GPIO_Port, RF1RXEN_Pin) };
 
+	Pin rf2TxEnable { Pin(RF2TXEN_GPIO_Port, RF2TXEN_Pin) };
+	Pin rf2RxEnable { Pin(RF2RXEN_GPIO_Port, RF2RXEN_Pin) };
+
 	volatile LinkState state { INIT };
 	uint16_t packetNumber;
 
 	volatile bool heartBeatTimeout { false };
 	volatile IrqSource lastIrqSource { NO_IRQ };
+	bool useRf1 { true };
 	uint32_t lostSync { 0 };
 	uint32_t lostPacket { 0 };
 	std::map<uint8_t, int> failuresPerChannel { };

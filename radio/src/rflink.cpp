@@ -13,10 +13,12 @@
 
 void RfLink::init() {
 	this->patternGenerator = new PatternGenerator(NULL, PatternGenerator::maximumNumberOfChannels);
-	Pin nresetPin(RF1NRESET_GPIO_Port, RF1NRESET_Pin);
-	Pin ncsPin(RF1NSS_GPIO_Port, RF1NSS_Pin);
-	Pin busyPin(RF1BUSY_GPIO_Port, RF1BUSY_Pin);
-	this->rf1Module = new SX1280(&hspi1, nresetPin, ncsPin, busyPin);
+
+	// init RF mobule #1
+	Pin rf1NresetPin(RF1NRESET_GPIO_Port, RF1NRESET_Pin);
+	Pin rf1NcsPin(RF1NSS_GPIO_Port, RF1NSS_Pin);
+	Pin rf1BusyPin(RF1BUSY_GPIO_Port, RF1BUSY_Pin);
+	this->rf1Module = new SX1280(&hspi1, rf1NresetPin, rf1NcsPin, rf1BusyPin);
 
 	rf1Module->onTxDone = [this]() {
 		rf1TxEnable.low();
@@ -35,12 +37,37 @@ void RfLink::init() {
 	rf1Module->init();
 	rf1Module->setAddress(0x6969);
 
+	// init RF mobule #1
+	Pin rf2NresetPin(RF2NRESET_GPIO_Port, RF2NRESET_Pin);
+	Pin rf2NcsPin(RF2NSS_GPIO_Port, RF2NSS_Pin);
+	Pin rf2BusyPin(RF2BUSY_GPIO_Port, RF2BUSY_Pin);
+	this->rf2Module = new SX1280(&hspi2, rf2NresetPin, rf2NcsPin, rf2BusyPin);
+
+	rf2Module->onTxDone = [this]() {
+		rf2TxEnable.low();
+		state = TRANSMITTED;
+	};
+
+	rf2Module->onSyncWordDone = [this]() {
+	    state = SYNC_RECEIVED;
+	};
+
+	rf2Module->onRxDone = [this]() {
+		rf2RxEnable.low();
+		state = RECEIVED;
+	};
+
+	rf2Module->init();
+	rf2Module->setAddress(0x6969);
+
     if (transmitter) {
     	uint16_t txIrqMask { IRQ_TX_DONE };
     	rf1Module->setDioIrqParams(txIrqMask, txIrqMask, IRQ_RADIO_NONE, IRQ_RADIO_NONE);
+    	rf2Module->setDioIrqParams(txIrqMask, txIrqMask, IRQ_RADIO_NONE, IRQ_RADIO_NONE);
     } else {
     	uint16_t rxIrqMask { IRQ_RX_DONE | IRQ_SYNCWORD_VALID };
     	rf1Module->setDioIrqParams(rxIrqMask, rxIrqMask, IRQ_RADIO_NONE, IRQ_RADIO_NONE);
+    	rf2Module->setDioIrqParams(rxIrqMask, rxIrqMask, IRQ_RADIO_NONE, IRQ_RADIO_NONE);
 	}
 
     __HAL_TIM_SET_AUTORELOAD(heartBeatTimer, transmitter ? trackingHopRate : acqusitionHopRate);
@@ -65,6 +92,8 @@ void RfLink::runLoop(void) {
 		// 56 us
 		if (lastIrqSource == MODULE1_IRQ) {
 			rf1Module->processIrqs();
+		} else if (lastIrqSource == MODULE2_IRQ) {
+			rf2Module->processIrqs();
 		} else {
 
 		}
@@ -81,25 +110,31 @@ void RfLink::runLoop(void) {
 //		HAL_GPIO_WritePin(RF1CS_GPIO_Port, RF1CS_Pin, GPIO_PIN_SET);
 
 		rf1Module->standBy();
+		rf2Module->standBy();
 
 		if (state != WAITING_FOR_NEXT_HOP) {
 			// 70 us
 			registerLostPacket();
 		}
 
+		useRf1 = !useRf1;
 		state = START;
 //		HAL_GPIO_WritePin(Heartbeat_GPIO_Port, Heartbeat_Pin, GPIO_PIN_RESET);
 	}
 
 	switch (state) {
-	case START:
+	case START: {
 		// 49 us
 		packetNumber++;
 		if (packetNumber >= 1000) {
 			packetNumber = 0;
 		}
-		rf1Module->setChannel(patternGenerator->nextHop());
+
+		uint8_t nextChannel = patternGenerator->nextHop();
+		rf1Module->setChannel(nextChannel);
+		rf2Module->setChannel(nextChannel);
 		state = SEND_OR_ENTER_RX;
+	}
 		break;
 	case SEND_OR_ENTER_RX:
 		// sendPacket xxx us, enterRx: 153 us
@@ -222,14 +257,17 @@ void RfLink::registerLostPacket(void) {
 void RfLink::sendPacket(void) {
 	if (onTransmit == nullptr) { return; }
 
-	rf1TxEnable.high();
+	SX1280 *rfModule = useRf1 ? rf1Module : rf2Module;
+	useRf1 ? rf1TxEnable.high() : rf2TxEnable.high();
     Packet packet { 0 };
     packet.status.packetNumber = packetNumber;
     onTransmit(packet);
-    rf1Module->send((uint8_t *)&packet, sizeof(Packet));
+    rfModule->send((uint8_t *)&packet, sizeof(Packet));
 }
 
 void RfLink::enterRx(void) {
 	rf1RxEnable.high();
+	rf2RxEnable.high();
     rf1Module->enterRx();
+    rf2Module->enterRx();
 }
