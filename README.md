@@ -3,6 +3,7 @@ This is the firmware for the Rc receiver based on the SX1280 chipset. The hardwa
 # Project goals
 * Handle both receiver and transmitter in one codeline
 * FHSS (Frequency Hopping Spread Spectrum) system
+* FCC and ETSI EN compliance
 * 80 channels (on normal ISM band: 2400 Mhz - 2483.5 Mhz), with 1MHz channel separation
 * 100 Hz hopping frequency
 * Fixed hopping sequence
@@ -18,8 +19,8 @@ This is the firmware for the Rc receiver based on the SX1280 chipset. The hardwa
   - Extensible via UART port(s)
 * OTA (Over the Air) firmware update
 
-# Current status (April 11, 2019)
-* The firmware is only using the RF module #1
+# Current status (April 13, 2019)
+* The firmware is using both RF modules
 * FHSS works
 * Acquisition and tracking works
 * Communication is only one way at the moment
